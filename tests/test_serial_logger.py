@@ -253,6 +253,10 @@ def test_capture_raw_serial_writes_upload_events(tmp_path):
                 b"[DATALOG] failed reason=rpc_error code=1010 "
                 b"message=Invalid Transaction response_len=111\n"
             ),
+            (
+                b"[DATALOG] failed reason=payload_too_large encoding=proto "
+                b"payload_len=481\n"
+            ),
         ],
         clock,
     )
@@ -266,10 +270,20 @@ def test_capture_raw_serial_writes_upload_events(tmp_path):
         "success",
         "attempt",
         "failure",
+        "failure",
     ]
+    assert upload_events[-1]["raw_fields"] == {
+        "reason": "payload_too_large",
+        "encoding": "proto",
+        "payload_len": "481",
+    }
     assert stats.upload_stats.channel("connectivity").attempts == 1
     assert stats.upload_stats.channel("connectivity").successes == 1
-    assert stats.upload_stats.channel("datalog").failures == 1
+    assert stats.upload_stats.channel("datalog").failures == 2
+    assert stats.upload_stats.channel("datalog").failure_reasons == {
+        "rpc_error code=1010 message=Invalid Transaction response_len=111": 1,
+        "payload_too_large encoding=proto payload_len=481": 1,
+    }
 
 
 def test_capture_raw_serial_regresses_current_uart_contract(tmp_path):
